@@ -1,0 +1,196 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                String    @id @default(cuid())
+  email             String    @unique
+  password          String
+  name              String
+  phone             String?
+  address           String?
+  languagePreference String?  @default("en")
+  role              UserRole  @default(USER)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  // Relations
+  pets              Pet[]
+  doctorProfile     Doctor?
+  assistantProfile  Assistant?
+  appointments      Appointment[]
+  messages          Message[]
+
+  @@map("users")
+}
+
+model Pet {
+  id              String   @id @default(cuid())
+  userId          String
+  name            String
+  species         String
+  breed           String?
+  age             Int?
+  weight          Float?
+  medicalHistory  String?
+  allergies       String?
+  medications     String?
+  imageUrl        String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  user            User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  appointments    Appointment[]
+
+  @@map("pets")
+}
+
+model Doctor {
+  id                String    @id @default(cuid())
+  userId            String    @unique
+  specialization    String
+  licenseNumber     String    @unique
+  experienceYears   Int?
+  consultationFee   Float?
+  verifiedStatus    Boolean   @default(false)
+  rating            Float?
+  availability      Json?     // Store availability as JSON
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  // Relations
+  user              User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  appointments      Appointment[]
+  samples           Sample[]
+
+  @@map("doctors")
+}
+
+model Assistant {
+  id                String    @id @default(cuid())
+  userId            String    @unique
+  doctorId          String?
+  department        String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  // Relations
+  user              User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  doctor            Doctor?    @relation(fields: [doctorId], references: [id])
+  samples           Sample[]
+
+  @@map("assistants")
+}
+
+model Appointment {
+  id                        String           @id @default(cuid())
+  userId                    String
+  doctorId                  String
+  petId                     String
+  appointmentDate           DateTime
+  duration                  Int              @default(30) // minutes
+  status                    AppointmentStatus @default(SCHEDULED)
+  natureOfVisit             String
+  symptoms                  String?
+  urgencyLevel              UrgencyLevel     @default(MEDIUM)
+  sampleCollectionRequired  Boolean          @default(false)
+  homeVisitRequired         Boolean          @default(false)
+  notes                     String?
+  createdAt                 DateTime         @default(now())
+  updatedAt                 DateTime         @updatedAt
+
+  // Relations
+  user                      User             @relation(fields: [userId], references: [id])
+  doctor                    Doctor           @relation(fields: [doctorId], references: [id])
+  pet                       Pet              @relation(fields: [petId], references: [id])
+  samples                   Sample[]
+  messages                  Message[]
+
+  @@map("appointments")
+}
+
+model Sample {
+  id            String   @id @default(cuid())
+  appointmentId String
+  doctorId      String
+  assistantId   String?
+  sampleType    String
+  collectionDate DateTime @default(now())
+  status        String   @default("PENDING")
+  notes         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  appointment   Appointment @relation(fields: [appointmentId], references: [id])
+  doctor        Doctor      @relation(fields: [doctorId], references: [id])
+  assistant     Assistant?  @relation(fields: [assistantId], references: [id])
+
+  @@map("samples")
+}
+
+model Message {
+  id            String      @id @default(cuid())
+  senderId      String
+  appointmentId String?
+  content       String
+  messageType   MessageType @default(TEXT)
+  imageUrl      String?
+  voiceUrl      String?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  // Relations
+  sender        User        @relation(fields: [senderId], references: [id])
+  appointment   Appointment? @relation(fields: [appointmentId], references: [id])
+
+  @@map("messages")
+}
+
+model DiseaseDetection {
+  id          String   @id @default(cuid())
+  petId       String
+  imageUrl    String
+  prediction  Json     // Store ML model predictions
+  confidence  Float?
+  severity    String?
+  recommendations String?
+  createdAt   DateTime @default(now())
+
+  @@map("disease_detections")
+}
+
+enum UserRole {
+  USER
+  DOCTOR
+  ASSISTANT
+}
+
+enum AppointmentStatus {
+  SCHEDULED
+  COMPLETED
+  CANCELLED
+  IN_PROGRESS
+}
+
+enum UrgencyLevel {
+  LOW
+  MEDIUM
+  HIGH
+  EMERGENCY
+}
+
+enum MessageType {
+  TEXT
+  IMAGE
+  VOICE
+}
